@@ -1,11 +1,10 @@
-import numpy as np
 import torch
 import torch.nn as nn
 import os
-from processing.models.deep_tl_predictor import DeepTLPredictor
+from processing.models.models_atl.deep_tl_predictor import DeepTLPredictor
 from processing.models.pytorch_tools.fcn_creation import FCN_Encoder_Module, FCN_Regressor_Module, \
     FCN_Domain_Classifier_Module, _compute_decoder_kernel_size
-from .pytorch_tools.training import fit, predict
+from processing.models.pytorch_tools.training import fit, predict
 
 
 class FCN(DeepTLPredictor):

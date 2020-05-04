@@ -1,16 +1,17 @@
+from processing.models.pytorch_tools.gradient_reversal import RevGrad
 import torch
 import os
-from processing.models.deep_predictor import DeepPredictor
+from processing.models.models_atl.deep_tl_predictor import DeepTLPredictor
 import torch.nn as nn
 from processing.models.pytorch_tools.training import fit, predict
 
 
-class LSTM(DeepPredictor):
+class LSTM(DeepTLPredictor):
     def __init__(self, subject, ph, params, train, valid, test):
         super().__init__(subject, ph, params, train, valid, test)
 
         self.model = self.LSTM_Module(self.input_shape, self.params["hidden"], self.params["dropout_weights"],
-                                      self.params["dropout_layer"])
+                                      self.params["dropout_layer"], self.params["domain_adversarial"], self.n_domains)
         self.model.cuda()
 
     def fit(self):
@@ -35,8 +36,12 @@ class LSTM(DeepPredictor):
         # create the model
         self.model.load_state_dict(torch.load(self.checkpoint_file))
 
-        y_true, y_pred = predict(self.model, ds)
-        results = self._format_results(y_true, y_pred, t)
+        if self.params["domain_adversarial"]:
+            [y_trues_glucose, y_trues_subject], [y_preds_glucose, y_preds_subject] = predict(self.model, ds)
+            results = self._format_results_source(y_trues_glucose, y_trues_subject, y_preds_glucose, y_preds_subject, t)
+        else:
+            y_true, y_pred = predict(self.model, ds)
+            results = self._format_results(y_true, y_pred, t)
 
         if clear:
             self._clear_checkpoint()
@@ -45,7 +50,7 @@ class LSTM(DeepPredictor):
 
     def save(self, save_file):
         no_da_lstm = self.LSTM_Module(self.input_shape, self.params["hidden"], self.params["dropout_weights"],
-                                      self.params["dropout_layer"])
+                                      self.params["dropout_layer"], False, 0)
         self.model.load_state_dict(torch.load(self.checkpoint_file))
         no_da_lstm.encoder.load_state_dict(self.model.encoder.state_dict())
         no_da_lstm.regressor.load_state_dict(self.model.regressor.state_dict())
@@ -59,14 +64,25 @@ class LSTM(DeepPredictor):
 
     class LSTM_Module(nn.Module):
 
-        def __init__(self, n_in, neurons, dropout_weights, dropout_layer):
+        def __init__(self, n_in, neurons, dropout_weights, dropout_layer, domain_adversarial=False, n_domains=1):
             super().__init__()
 
             self.encoder = nn.LSTM(n_in, neurons[0], len(neurons), dropout=dropout_layer, batch_first=True)
+
             self.regressor = nn.Linear(neurons[-1], 1)
 
+            self.domain_classifier = nn.Sequential(
+                RevGrad(),
+                nn.Linear(neurons[-1], n_domains),
+                nn.LogSoftmax(dim=1),
+            ) if domain_adversarial else None
 
         def forward(self, xb):
             features, _ = self.encoder(xb)
             prediction = self.regressor(features[:,-1])
-            return prediction.squeeze()
+            if self.domain_classifier is not None:
+                # domain = self.domain_classifier(self.GradReverse.apply(features[:,-1]))
+                domain = self.domain_classifier(features[:,-1])
+                return prediction.squeeze(), domain.squeeze()
+            else:
+                return prediction.squeeze()

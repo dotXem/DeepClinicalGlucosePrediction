@@ -7,27 +7,18 @@ import torch
 from processing.models.predictor import Predictor
 from misc.utils import printd
 import misc.constants as cs
-from .pytorch_tools.losses import DALoss
+from processing.models.pytorch_tools.losses import DALoss
 from torch import Tensor
 
-class DeepTLPredictor(Predictor):
+class DeepPredictor(Predictor):
     def __init__(self, subject, ph, params, train, valid, test):
         super().__init__(subject, ph, params, train, valid, test)
         self.checkpoint_file = self._compute_checkpoint_file(self.__class__.__name__)
-        self.n_domains = self._compute_number_of_domains()
-        self.domain_weights = self._compute_domain_weights()
         self.input_shape = self._compute_input_shape()
 
     def load(self, file_name):
         self.model.load_state_dict(torch.load(file_name))
         torch.save(self.model.state_dict(), self.checkpoint_file)
-
-    def _format_results_source(self, y_trues_glucose, y_trues_subject, y_preds_glucose, y_preds_subject, t):
-        y_trues_glucose, y_preds_glucose = [_.reshape(-1, 1) for _ in [y_trues_glucose, y_preds_glucose]]
-        y_trues_subject = y_trues_subject.reshape(-1, 1)
-        y_preds_subject = np.argmax(y_preds_subject, axis=1).reshape(-1, 1)
-        y_true, y_pred = np.c_[y_trues_glucose, y_trues_subject], np.c_[y_preds_glucose, y_preds_subject]
-        return pd.DataFrame(data=np.c_[y_true,y_pred],index=pd.DatetimeIndex(t.values),columns=["y_true", "d_true", "y_pred", "d_pred"])
 
     def _to_tensor_ds(self, x, y):
         return TensorDataset(torch.Tensor(x).cuda(), torch.Tensor(y).cuda())
@@ -41,29 +32,8 @@ class DeepTLPredictor(Predictor):
         printd("Saved model's file:", checkpoint_file)
         return checkpoint_file
 
-    def _compute_number_of_domains(self):
-        if self.params["domain_adversarial"]:
-            _, y_train, _ = self._str2dataset("train")
-            return int(np.max(y_train[:, 1]) + 1)
-        else:
-            return 0
-
-    def _compute_domain_weights(self):
-        _, y_train, _ = self._str2dataset("train")
-        if self.params["domain_weights"]:
-            n_samples_by_domain = [np.sum(y_train[:, 1] == i) / len(y_train) for i in
-                                   range(int(max(y_train[:, 1])) + 1)]
-            domains_weights = Tensor(n_samples_by_domain)
-            domains_weights = 1 / domains_weights
-            domains_weights /= domains_weights.min()
-            domains_weights = domains_weights.cuda()
-        else:
-            domains_weights = None
-
-        return domains_weights
-
-
     def _compute_loss_func(self):
+        #TODO rework
         if self.params["domain_adversarial"]:
             loss_func = DALoss(self.params["da_lambda"], self.domain_weights)
         else:

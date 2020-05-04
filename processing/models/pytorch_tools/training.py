@@ -8,6 +8,8 @@ from .plot_gradient import plot_grad_flow
 def loss_batch(model, loss_func, xb, yb, opt=None, plot_gradient=False):
     if loss_func.__class__.__name__ == "DALoss":
         loss, mse, nll = loss_func(model(xb), yb)
+    elif loss_func.__class__.__name__ == "pcMSE":
+        loss, mse, dmse = loss_func(model(xb), yb)
     else:
         loss = loss_func(model(xb), yb)
 
@@ -20,6 +22,8 @@ def loss_batch(model, loss_func, xb, yb, opt=None, plot_gradient=False):
 
     if loss_func.__class__.__name__ == "DALoss":
         return loss.item(), mse.item(), nll.item(), len(xb)
+    elif loss_func.__class__.__name__ == "pcMSE":
+        return loss.item(), mse.item(), dmse.item(), len(xb)
     else:
         return loss.item(), len(xb)
 
@@ -60,6 +64,12 @@ def evaluate(epoch, early_stopping, model, loss_func, dls):
                 loss_dl = [np.sum(np.multiply(losses, nums)) / sum, np.sum(np.multiply(mse, nums)) / sum,
                            np.sum(np.multiply(nll, nums)) / sum]
                 es_loss = loss_dl[1]
+            elif loss_func.__class__.__name__ == "pcMSE":
+                losses, mse, dmse, nums = zip(*[loss_batch(model, loss_func, xb, yb) for xb, yb in dl])
+                sum = np.sum(nums)
+                loss_dl = [np.sum(np.multiply(losses, nums)) / sum, np.sum(np.multiply(mse, nums)) / sum,
+                           np.sum(np.multiply(dmse, nums)) / sum]
+                es_loss = loss_dl[0]
             else:
                 losses, nums = zip(*[loss_batch(model, loss_func, xb, yb) for xb, yb in dl])
                 loss_dl = np.sum(np.multiply(losses, nums)) / np.sum(nums)
@@ -88,6 +98,21 @@ def predict(model, ds):
         trues = trues.transpose(1,0)
     else:
         preds = np.reshape(preds.cpu().detach().numpy(),(-1,1))
+
+    return trues, preds
+
+def predict_double_y(model, ds):
+    """ make the prediction """
+    model.eval()
+    dl = DataLoader(ds, batch_size=len(ds))
+
+    trues = dl.dataset.tensors[1].cpu().detach().numpy()
+    preds = model(dl.dataset.tensors[0])
+    if isinstance(preds, tuple):
+        preds = [ts.cpu().detach().numpy() for ts in preds]
+        trues = trues.transpose(1,0)
+    else:
+        preds = np.reshape(preds.cpu().detach().numpy(),(-1,2))
 
     return trues, preds
 

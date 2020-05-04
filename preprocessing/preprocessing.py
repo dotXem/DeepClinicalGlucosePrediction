@@ -9,7 +9,7 @@ from preprocessing.loading.loading_idiab import load_idiab
 import misc.datasets
 from misc.utils import printd
 from preprocessing.resampling import resample
-from preprocessing.samples_creation import create_samples
+from preprocessing.samples_creation import create_samples, create_samples_double_y
 from preprocessing.splitting import split
 from preprocessing.standardization import standardize
 from .cleaning.last_day_removal import remove_last_day
@@ -32,12 +32,12 @@ def preprocessing_ohio(dataset, subject, ph, hist, day_len, n_days_test):
     """
     data = load_ohio(dataset, subject)
     data = resample(data, cs.freq)
-    data = create_samples(data, ph, hist, day_len)
+    # data = create_samples(data, ph, hist, day_len)
+    data = create_samples_double_y(data, ph, hist, day_len)
     data = fill_nans(data, day_len, n_days_test)
     train, valid, test = split(data, day_len, n_days_test, cs.cv)
     [train, valid, test] = [remove_nans(set) for set in [train, valid, test]]
     train, valid, test, scalers = standardize(train, valid, test)
-    print(test[0].shape)
     return train, valid, test, scalers
 
 
@@ -80,7 +80,8 @@ def preprocessing_idiab(dataset, subject, ph, hist, day_len, n_days_test):
     data = remove_anomalies(data)
     data = resample(data, cs.freq)
     data = remove_last_day(data)
-    data = create_samples(data, ph, hist, day_len)
+    # data = create_samples(data, ph, hist, day_len)
+    data = create_samples_double_y(data, ph, hist, day_len) #TODO too many missing data => need to interpolate y_0 using y_1
     data = fill_nans(data, day_len, n_days_test)
     train, valid, test = split(data, day_len, misc.datasets.datasets[dataset]["n_days_test"], cs.cv)
     [train, valid, test] = [remove_nans(set) for set in [train, valid, test]]
