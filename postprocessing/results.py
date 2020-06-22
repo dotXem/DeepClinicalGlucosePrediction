@@ -1,3 +1,6 @@
+import pathlib
+import openpyxl
+from misc.utils import print_latex
 import pandas as pd
 import os
 import numpy as np
@@ -53,7 +56,7 @@ class ResultsDataset():
                                          legacy=self.legacy)
             params.append(res_subject.params)
 
-        return dict(zip(params[0].keys(), np.mean([list(_.values()) for _ in params], axis=0)))
+        return dict(zip(params[0].keys(), np.nanmean([list(_.values()) for _ in params], axis=0)))
 
     def to_latex(self, table="acc", model_name=None):
         """
@@ -67,42 +70,27 @@ class ResultsDataset():
             p_ega_keys = ["P_EGA_A+B", "P_EGA_A", "P_EGA_B", "P_EGA_C", "P_EGA_D", "P_EGA_E"]
             mean = [mean[k] * 100 for k in p_ega_keys]
             std = [std[k] * 100 for k in p_ega_keys]
+
+        elif table == "r_ega":
+            r_ega_keys = ["R_EGA_A+B", "R_EGA_A", "R_EGA_B", "R_EGA_lC", "R_EGA_uC", "R_EGA_lD", "R_EGA_uD", "R_EGA_lE",
+                          "R_EGA_uC"]
+            mean = [mean[k] * 100 for k in r_ega_keys]
+            std = [std[k] * 100 for k in r_ega_keys]
+        elif table == "cg_ega":
+            cg_ega_keys = ["CG_EGA_AP_hypo", "CG_EGA_BE_hypo", "CG_EGA_EP_hypo", "CG_EGA_AP_eu", "CG_EGA_BE_eu",
+                           "CG_EGA_EP_eu", "CG_EGA_AP_hyper", "CG_EGA_BE_hyper", "CG_EGA_EP_hyper"]
+            mean = [mean[k] * 100 for k in cg_ega_keys]
+            std = [std[k] * 100 for k in cg_ega_keys]
+        elif table == "general":
+            acc_keys = ["RMSE", "MAPE", "MASE", "CG_EGA_AP", "CG_EGA_BE", "CG_EGA_EP"]
+            mean = [mean[k] if k not in ["CG_EGA_AP", "CG_EGA_BE", "CG_EGA_EP"] else mean[k] * 100 for k in acc_keys]
+            std = [std[k] if k not in ["CG_EGA_AP", "CG_EGA_BE", "CG_EGA_EP"] else std[k] * 100 for k in acc_keys]
         elif table == "acc":
-            acc_keys = ["RMSE", "MAPE"]
+            acc_keys = ["RMSE", "MAPE", "MASE", "TG"]
             mean = [mean[k] for k in acc_keys]
             std = [std[k] for k in acc_keys]
 
-        str = " & ".join(["{0:.2f} \\scriptsize{{({1:.2f})}}".format(mean_, std_) for mean_, std_ in zip(mean, std)])
-        print(str)
-
-
-class ResultsDatasetTransfer(ResultsDataset):
-    # TODO remove ?
-    """ Convenient class, child of ResultsDataset, that overwrites the to_latex function """
-
-    def __init__(self, model, experiment, ph, source_dataset, target_dataset):
-        experiment = source_dataset + "_2_" + target_dataset + "\\" + experiment
-        super().__init__(model, experiment, ph, target_dataset, legacy=False)
-
-    def to_latex(self, table="acc", model_name=None):
-        """
-        Format the results into a string for the paper in LATEX
-        :param table: either "acc" or "cg_ega", corresponds to the table
-        :param model_name: prefix of the string, name of the model
-        :return:
-        """
-        mean, std = self.compute_results()
-        if table == "p_ega":
-            p_ega_keys = ["P_EGA_A+B", "P_EGA_A", "P_EGA_B", "P_EGA_C", "P_EGA_D", "P_EGA_E"]
-            mean = [mean[k] * 100 for k in p_ega_keys]
-            std = [std[k] * 100 for k in p_ega_keys]
-        elif table == "acc":
-            acc_keys = ["RMSE", "MAPE"]
-            mean = [mean[k] for k in acc_keys]
-            std = [std[k] for k in acc_keys]
-
-        str = " & ".join(["{0:.2f} \\scriptsize{{({1:.2f})}}".format(mean_, std_) for mean_, std_ in zip(mean, std)])
-        print(str)
+        print_latex(mean, std, label=self.model)
 
 
 class ResultsSubject():
@@ -133,7 +121,6 @@ class ResultsSubject():
         else:
             self.results = results
             self.params = params
-            self.save_raw_results()
 
     def load_raw_results(self, legacy=False, transfer=False):
         """
@@ -198,6 +185,7 @@ class ResultsSubject():
         mase_score = [mase.MASE(res_day, self.ph, self.freq) for res_day in results]
         tg_score = [time_lag.time_gain(res_day, self.ph, self.freq, "mse") for res_day in results]
         cg_ega_score = np.array([cg_ega.CG_EGA(res_day, self.freq).simplified() for res_day in results])
+        cg_ega_score2 = np.array([cg_ega.CG_EGA(res_day, self.freq).reduced() for res_day in results])
         p_ega_score = np.array([p_ega.P_EGA(res_day, self.freq).mean() for res_day in results])
         p_ega_a_plus_b_score = [p_ega.P_EGA(res_day, self.freq).a_plus_b() for res_day in results]
         r_ega_score = np.array([r_ega.R_EGA(res_day, self.freq).mean() for res_day in results])
@@ -208,6 +196,9 @@ class ResultsSubject():
             "MAPE": mape_score,
             "MASE": mase_score,
             "TG": tg_score,
+            "CG_EGA_AP": cg_ega_score2[:, 0],
+            "CG_EGA_BE": cg_ega_score2[:, 1],
+            "CG_EGA_EP": cg_ega_score2[:, 2],
             "CG_EGA_AP_hypo": cg_ega_score[:, 0],
             "CG_EGA_BE_hypo": cg_ega_score[:, 1],
             "CG_EGA_EP_hypo": cg_ega_score[:, 2],
@@ -234,6 +225,38 @@ class ResultsSubject():
             "R_EGA_lE": r_ega_score[:, 7],
         }
 
+    def save_excel(self, file_name):
+        file = os.path.join(cs.path, file_name)
+
+        # results = self.get_results()
+        misc_params = {"experiment": self.experiment, "step": 2, "dataset": self.dataset, "subject": self.subject,
+                       "split": 0}
+
+        p_params = {"P_" + x: self.params["p_coeff"][x] for x in ["A", "B", "C", "D", "E"]}
+        r_params = {"R_" + x: self.params["r_coeff"][x] for x in ["A", "B", "C", "D", "E"]}
+        params = {"c": self.params["coherence_factor"], **p_params, **r_params, "lr": self.params["lr"]}
+
+        results = self.compute_mean_std_results()[0]
+
+        data = {**misc_params, **params, **results}
+
+        # if file not exist, create it with appropriate header
+        if not pathlib.Path(file).is_file():
+            wb = openpyxl.Workbook()
+            wb.remove_sheet(wb.get_sheet_by_name("Sheet"))
+        else:
+            wb = openpyxl.load_workbook(file)
+
+        if not self.model in wb.sheetnames:
+            wb.create_sheet(self.model)
+            ws = wb[self.model]
+            ws.append(list(data.keys()))
+        else:
+            ws = wb[self.model]
+
+        ws.append(list(data.values()))
+        wb.save(file)
+
     def compute_mean_std_results(self, split_by_day=False):
         """
         From the raw metrics scores, compute the mean and std
@@ -242,8 +265,8 @@ class ResultsSubject():
         """
         raw_results = self.compute_raw_results(split_by_day=split_by_day)
 
-        mean = {key: val for key, val in zip(list(raw_results.keys()), np.mean(list(raw_results.values()), axis=1))}
-        std = {key: val for key, val in zip(list(raw_results.keys()), np.std(list(raw_results.values()), axis=1))}
+        mean = {key: val for key, val in zip(list(raw_results.keys()), np.nanmean(list(raw_results.values()), axis=1))}
+        std = {key: val for key, val in zip(list(raw_results.keys()), np.nanstd(list(raw_results.values()), axis=1))}
 
         return mean, std
 
@@ -254,3 +277,49 @@ class ResultsSubject():
         :return: /
         """
         cg_ega.CG_EGA(self.results[0], self.freq).plot(day_number)
+
+    def to_latex(self, table="acc", model_name=None):
+        """
+        Format the results into a string for the paper in LATEX
+        :param table: either "acc" or "cg_ega", corresponds to the table
+        :param model_name: prefix of the string, name of the model
+        :return:
+        """
+        mean, std = self.compute_mean_std_results()
+        if table == "p_ega":
+            p_ega_keys = ["P_EGA_A+B", "P_EGA_A", "P_EGA_B", "P_EGA_C", "P_EGA_D", "P_EGA_E"]
+            mean = [mean[k] * 100 for k in p_ega_keys]
+            std = [std[k] * 100 for k in p_ega_keys]
+
+        elif table == "r_ega":
+            r_ega_keys = ["R_EGA_A+B", "R_EGA_A", "R_EGA_B", "R_EGA_lC", "R_EGA_uC", "R_EGA_lD", "R_EGA_uD", "R_EGA_lE",
+                          "R_EGA_uC"]
+            mean = [mean[k] * 100 for k in r_ega_keys]
+            std = [std[k] * 100 for k in r_ega_keys]
+        elif table == "cg_ega":
+            cg_ega_keys = ["CG_EGA_AP", "CG_EGA_BE", "CG_EGA_EP", "CG_EGA_AP_hypo", "CG_EGA_BE_hypo", "CG_EGA_EP_hypo",
+                           "CG_EGA_AP_eu", "CG_EGA_BE_eu",
+                           "CG_EGA_EP_eu", "CG_EGA_AP_hyper", "CG_EGA_BE_hyper", "CG_EGA_EP_hyper"]
+            mean = [mean[k] * 100 for k in cg_ega_keys]
+            std = [std[k] * 100 for k in cg_ega_keys]
+        elif table == "acc":
+            acc_keys = ["RMSE", "MAPE", "TG"]
+            mean = [mean[k] for k in acc_keys]
+            std = [std[k] for k in acc_keys]
+
+        print_latex(mean, std, label=self.subject)
+
+from postprocessing.smoothing import smooth_results
+def smooth_resultssubject(results_sbj, smoothing_params):
+    res = results_sbj.results.copy()
+    res = [smooth_results(res_split,smoothing_params) for res_split in res]
+    return ResultsSubject(results_sbj.model, results_sbj.experiment + "_smooth", results_sbj.ph, results_sbj.dataset,
+                          results_sbj.subject, results_sbj.params, res)
+
+from postprocessing.smoothing import *
+from postprocessing.results import ResultsSubject, ResultsDataset, smooth_resultssubject
+import misc
+def smooth_dataset_experiment(model, exp, dataset):
+    smoothing = {"func": exponential_smoothing, "params": [0.85] if dataset == "idiab" else [0.85]}
+    for sbj in misc.datasets.datasets[dataset]["subjects"]:
+        smooth_resultssubject(ResultsSubject(model, exp, 30, dataset, sbj), smoothing).save_raw_results()

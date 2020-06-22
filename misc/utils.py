@@ -11,11 +11,12 @@ def dict_cartesian_product(dict):
     :param dict: dict;
     :return: array of values combinations
     """
-    l = iter([])
-    for hparams in [dict]:
-        l2 = itertools.product(*hparams.values())
-        l = itertools.chain(l, l2)
-    l2 = [list(elem) for elem in l]
+    l2 = [list(elem) for elem in itertools.product(*dict.values())]
+    # l = iter([])
+    # for hparams in [dict]: #TODO remove ??
+    #     l2 = itertools.product(*hparams.values())
+    #     l = itertools.chain(l, l2)
+    # l2 = [list(elem) for elem in l]
     return l2
 
 
@@ -25,6 +26,7 @@ def timeit(method):
         :param method: function
         :return: time elapsed
     """
+
     def timed(*args, **kw):
         ts = time.time()
         result = method(*args, **kw)
@@ -46,11 +48,11 @@ def locate_model(model_name):
 
 
 def locate_params(params_name):
-    return locate ("processing.models.params." + params_name + ".parameters")
+    return locate("processing.models.params." + params_name + ".parameters")
 
 
 def locate_search(params_name):
-    return locate ("processing.models.params." + params_name + ".search")
+    return locate("processing.models.params." + params_name + ".search")
 
 
 def printd(*msg):
@@ -62,3 +64,10 @@ def printd(*msg):
     date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     print(date, " ".join(str(v) for v in msg))
     sys.stdout.flush()
+
+
+def print_latex(mean, std, label=""):
+    print(
+        "\\textbf{" + label + "} & " + " & ".join(
+            ["{0:.2f} \\scriptsize{{({1:.2f})}}".format(mean_, std_) for mean_, std_ in zip(mean, std)])
+        + "\\\\")

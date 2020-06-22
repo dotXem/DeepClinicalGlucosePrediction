@@ -4,14 +4,10 @@ from preprocessing.preprocessing import preprocessing
 import sys
 import argparse
 from os.path import join
-from pydoc import locate
 import misc.constants as cs
 from misc.utils import printd
 from processing.cross_validation import make_predictions, find_best_hyperparameters
 from misc.utils import locate_params, locate_model, locate_search
-
-""" This is the source code the benchmark GLYFE for glucose prediction in diabetes.
-    For more infos on how to use it, go to its Github repository at: https://github.com/dotXem/GLYFE """
 
 
 def main(dataset, subject, model, params, exp, mode, log, ph, plot):
@@ -40,6 +36,7 @@ def main(dataset, subject, model, params, exp, mode, log, ph, plot):
 
     """ EVALUATION """
     results = ResultsSubject(model, exp, ph, dataset, subject, params=params, results=raw_results)
+    results.save_raw_results()
     printd(results.compute_mean_std_results())
     if plot:
         results.plot(0)

@@ -9,7 +9,7 @@ datasets = {
         "subjects": ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"],
         "n_days_test": 10,
     },
-    "t1dms": {
+    "t1dms_adult": {
         "glucose_freq": 1,
         "subjects": ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"],
         "n_days_test": 10,

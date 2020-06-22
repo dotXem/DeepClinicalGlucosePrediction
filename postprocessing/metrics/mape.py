@@ -6,5 +6,6 @@ def MAPE(results):
         :param results: dataframe with predictions and ground truths
         :return: fitness
     """
-    y_true, y_pred = results.values.transpose()
+    results = results.loc[(results != 0).all(axis=1)] # drop zeros because we can't divide by zeros - zeros are erroneous values anyway
+    y_true, y_pred = results.dropna().values.transpose()
     return 100 * np.nanmean(np.abs((y_true-y_pred)/y_true))

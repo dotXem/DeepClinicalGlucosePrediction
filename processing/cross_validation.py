@@ -3,26 +3,27 @@ from misc.utils import printd
 from postprocessing.metrics.rmse import RMSE
 from processing.hyperparameters_tuning import compute_coarse_params_grid, compute_refined_params_grid
 
-def make_predictions_tl(subject, model_class, params, ph, train, valid, test, weights_file=None, tl_mode="target_training", save_model=None, eval_mode="valid"):
+def make_predictions_pclstm(subject, model_class, params, ph, train, valid, test, scalers, mode="valid"):
     """
-    Identical to make_predictions but for model that are transfered (use of weight file
+    For every train, valid, test fold, fit the given model with params at prediciton horizon on the training set,
+    and make predictions on either the validation or testing set
+    :param subject: name of subject
+    :param model_class: name of model
+    :param params: hyperparameters file name
+    :param ph: prediction horizon in scaled minutes
+    :param train: training sets
+    :param valid: validation sets
+    :param test: testing sets
+    :param mode: on which set the model is tested (either "valid" or "test")
+    :return: array of ground truths/predictions dataframe
     """
     results = []
-    for i, (train_i, valid_i, test_i) in enumerate(zip(train, valid, test)):
+    for train_i, valid_i, test_i, scaler_i in zip(train, valid, test, scalers):
         model = model_class(subject, ph, params, train_i, valid_i, test_i)
-
-        if weights_file:
-            model.load(weights_file)
-
-        if not tl_mode == "target_global":
-            model.fit()
-
-            if tl_mode == "source_training":
-                model.save(save_model)
-
-        res = model.predict(dataset=eval_mode)
+        model.fit(scaler_i.mean_[-2:], scaler_i.scale_[-2:])
+        res = model.predict(dataset=mode)
         results.append(res)
-        if eval_mode == "valid":
+        if mode == "valid":
             break
     return results
 
@@ -71,3 +72,4 @@ def find_best_hyperparameters(subject, model_class, params, search, ph, train, v
     best_refined_params = params_search(refined_params_grid)
 
     return best_refined_params
+

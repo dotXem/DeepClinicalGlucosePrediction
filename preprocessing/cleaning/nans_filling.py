@@ -11,6 +11,9 @@ def fill_nans(data, day_len, n_days_test):
     :param n_days_test: number of test days
     :return: cleaned sample dataframe
     """
+
+    #TODO see behavior with big gaps in data (e.g, 2/3h), in particular in IDIAB 6
+
     data_nan = data.copy()
 
     # fill insulin and CHO nans with 0
@@ -99,3 +102,7 @@ def _compute_indexes(i, index, len):
         return (i, "glucose_" + str(index - i))
     else:
         return (index, "glucose_0")
+
+def fill_y_prev(data):
+    data.y_prev = data.y_prev.interpolate("linear")
+    return data

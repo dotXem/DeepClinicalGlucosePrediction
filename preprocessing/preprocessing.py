@@ -2,7 +2,7 @@ import pandas as pd
 from .cleaning.unit_scaling import scaling_T1DMS
 from misc import constants as cs
 from preprocessing.cleaning.nans_removal import remove_nans
-from preprocessing.cleaning.nans_filling import fill_nans
+from preprocessing.cleaning.nans_filling import fill_nans, fill_y_prev
 from preprocessing.loading.loading_ohio import load_ohio
 from preprocessing.loading.loading_t1dms import load_t1dms
 from preprocessing.loading.loading_idiab import load_idiab
@@ -83,6 +83,7 @@ def preprocessing_idiab(dataset, subject, ph, hist, day_len, n_days_test):
     # data = create_samples(data, ph, hist, day_len)
     data = create_samples_double_y(data, ph, hist, day_len) #TODO too many missing data => need to interpolate y_0 using y_1
     data = fill_nans(data, day_len, n_days_test)
+    data = fill_y_prev(data)
     train, valid, test = split(data, day_len, misc.datasets.datasets[dataset]["n_days_test"], cs.cv)
     [train, valid, test] = [remove_nans(set) for set in [train, valid, test]]
     train, valid, test, scalers = standardize(train, valid, test)

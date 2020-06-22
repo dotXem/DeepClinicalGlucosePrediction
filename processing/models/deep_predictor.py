@@ -1,13 +1,11 @@
 import torch.nn as nn
 from torch.utils.data import TensorDataset
 import os
-import pandas as pd
 import numpy as np
 import torch
 from processing.models.predictor import Predictor
 from misc.utils import printd
 import misc.constants as cs
-from processing.models.pytorch_tools.losses import DALoss
 from torch import Tensor
 
 class DeepPredictor(Predictor):
@@ -33,20 +31,14 @@ class DeepPredictor(Predictor):
         return checkpoint_file
 
     def _compute_loss_func(self):
-        #TODO rework
-        if self.params["domain_adversarial"]:
-            loss_func = DALoss(self.params["da_lambda"], self.domain_weights)
-        else:
-            loss_func = nn.MSELoss()
+        #TODO rework / remove
+        loss_func = nn.MSELoss()
 
         return loss_func
 
     def _reshape(self, data):
         t = data["datetime"]
-        if self.params["domain_adversarial"]:
-            y = data[["y", "domain"]].values
-        else:
-            y = data["y"].values
+        y = data["y"].values
 
         g = data.loc[:, [col for col in data.columns if "glucose" in col]].values
         cho = data.loc[:, [col for col in data.columns if "CHO" in col]].values

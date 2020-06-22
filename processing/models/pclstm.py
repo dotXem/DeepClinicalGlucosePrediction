@@ -1,12 +1,12 @@
 import pandas as pd
 import numpy as np
-from processing.models.pytorch_tools.losses import pcMSE
+from processing.models.pytorch_tools.losses import cMSE, gcMSE
 import torch
 import os
 from processing.models.deep_predictor import DeepPredictor
 import torch.nn as nn
 from processing.models.pytorch_tools.training import fit, predict_double_y
-
+import misc.constants as cs
 
 class PCLSTM(DeepPredictor):
     def __init__(self, subject, ph, params, train, valid, test):
@@ -16,13 +16,13 @@ class PCLSTM(DeepPredictor):
                                       self.params["dropout_layer"])
         self.model.cuda()
 
-    def fit(self):
+    def fit(self, mean, std):
         x_train, y_train, t_train = self._str2dataset("train")
         x_valid, y_valid, t_valid = self._str2dataset("valid")
         train_ds = self._to_tensor_ds(x_train, y_train)
         valid_ds = self._to_tensor_ds(x_valid, y_valid)
 
-        self.loss_func = pcMSE(self.params["coherence_factor"])
+        self.loss_func = gcMSE(mean, std, cs.freq, self.params["p_coeff"], self.params["r_coeff"], self.params["coherence_factor"])
 
         self.opt = torch.optim.Adam(self.model.parameters(), lr=self.params["lr"], weight_decay=self.params["l2"])
 
@@ -46,14 +46,15 @@ class PCLSTM(DeepPredictor):
         return results
 
     def save(self, save_file):
-        no_da_lstm = self.LSTM_Module(self.input_shape, self.params["hidden"], self.params["dropout_weights"],
-                                      self.params["dropout_layer"])
         self.model.load_state_dict(torch.load(self.checkpoint_file))
-        no_da_lstm.encoder.load_state_dict(self.model.encoder.state_dict())
-        no_da_lstm.regressor.load_state_dict(self.model.regressor.state_dict())
+        # no_da_lstm = self.LSTM_Module(self.input_shape, self.params["hidden"], self.params["dropout_weights"],
+        #                               self.params["dropout_layer"])
+        # self.model.load_state_dict(torch.load(self.checkpoint_file))
+        # no_da_lstm.encoder.load_state_dict(self.model.encoder.state_dict())
+        # no_da_lstm.regressor.load_state_dict(self.model.regressor.state_dict())
         if not os.path.exists(os.path.dirname(save_file)):
             os.makedirs(os.path.dirname(save_file))
-        torch.save(no_da_lstm.state_dict(), save_file)
+        torch.save(self.model.state_dict(), save_file)
 
     def _compute_input_shape(self):
         x_train, _, _ = self._str2dataset("train")
@@ -79,4 +80,4 @@ class PCLSTM(DeepPredictor):
         def forward(self, xb):
             features, _ = self.encoder(xb)
             prediction = self.regressor(features[:, -2:])
-            return prediction.squeeze()
+            return prediction.reshape((-1,2))

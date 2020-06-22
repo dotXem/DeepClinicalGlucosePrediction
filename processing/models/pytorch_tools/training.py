@@ -8,8 +8,10 @@ from .plot_gradient import plot_grad_flow
 def loss_batch(model, loss_func, xb, yb, opt=None, plot_gradient=False):
     if loss_func.__class__.__name__ == "DALoss":
         loss, mse, nll = loss_func(model(xb), yb)
-    elif loss_func.__class__.__name__ == "pcMSE":
+    elif loss_func.__class__.__name__ in ["cMSE"]:
         loss, mse, dmse = loss_func(model(xb), yb)
+    elif loss_func.__class__.__name__ == "gcMSE":
+        loss, mse, dmse, pega_ab, rega_ab = loss_func(model(xb), yb)
     else:
         loss = loss_func(model(xb), yb)
 
@@ -22,8 +24,10 @@ def loss_batch(model, loss_func, xb, yb, opt=None, plot_gradient=False):
 
     if loss_func.__class__.__name__ == "DALoss":
         return loss.item(), mse.item(), nll.item(), len(xb)
-    elif loss_func.__class__.__name__ == "pcMSE":
+    elif loss_func.__class__.__name__  == "cMSE":
         return loss.item(), mse.item(), dmse.item(), len(xb)
+    elif loss_func.__class__.__name__ == "gcMSE":
+        return loss.item(), mse.item(), dmse.item(), pega_ab.item(), rega_ab.item(), len(xb)
     else:
         return loss.item(), len(xb)
 
@@ -64,11 +68,17 @@ def evaluate(epoch, early_stopping, model, loss_func, dls):
                 loss_dl = [np.sum(np.multiply(losses, nums)) / sum, np.sum(np.multiply(mse, nums)) / sum,
                            np.sum(np.multiply(nll, nums)) / sum]
                 es_loss = loss_dl[1]
-            elif loss_func.__class__.__name__ == "pcMSE":
+            elif loss_func.__class__.__name__ == "cMSE":
                 losses, mse, dmse, nums = zip(*[loss_batch(model, loss_func, xb, yb) for xb, yb in dl])
                 sum = np.sum(nums)
                 loss_dl = [np.sum(np.multiply(losses, nums)) / sum, np.sum(np.multiply(mse, nums)) / sum,
                            np.sum(np.multiply(dmse, nums)) / sum]
+                es_loss = loss_dl[0]
+            elif loss_func.__class__.__name__ == "gcMSE":
+                losses, mse, dmse, pega_ab, rega_ab, nums = zip(*[loss_batch(model, loss_func, xb, yb) for xb, yb in dl])
+                sum = np.sum(nums)
+                loss_dl = [np.sum(np.multiply(losses, nums)) / sum, np.sum(np.multiply(mse, nums)) / sum,
+                           np.sum(np.multiply(dmse, nums)) / sum, np.sum(pega_ab) / sum, np.sum(rega_ab) / sum]
                 es_loss = loss_dl[0]
             else:
                 losses, nums = zip(*[loss_batch(model, loss_func, xb, yb) for xb, yb in dl])
