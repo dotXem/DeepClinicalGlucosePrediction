@@ -12,7 +12,7 @@ from misc.utils import print_latex
 from postprocessing.results import ResultsSubject
 
 
-class ResultsSubjectAPAC(ResultsSubject):
+class ResultsSubjectPICA(ResultsSubject):
     """
     Same as ResultsSubject object from postprocessing.results, but works with all iterations of algorithm APAC at once
 
@@ -139,7 +139,7 @@ class ResultsSubjectAPAC(ResultsSubject):
         return mean, std
 
 
-class ResultsDatasetAPAC():
+class ResultsDatasetPICA():
     """
     Same as ResultsDataset object from postprocessing.results, but works with all iterations of algorithm APAC at once
 
@@ -163,7 +163,7 @@ class ResultsDatasetAPAC():
         """
         res = []
         for subject in self.subjects:
-            res_subject = ResultsSubjectAPAC(self.model, self.experiment_test, self.ph, self.dataset,
+            res_subject = ResultsSubjectPICA(self.model, self.experiment_test, self.ph, self.dataset,
                                              subject).compute_results_iter_split(iter)
             if details:
                 print(self.dataset, subject, res_subject)
@@ -182,7 +182,7 @@ class ResultsDatasetAPAC():
         :return:
         """
         for subject in misc.datasets.datasets[self.dataset]["subjects"]:
-            ResultsSubjectAPAC(self.model, self.experiment_test, self.ph, self.dataset,
+            ResultsSubjectPICA(self.model, self.experiment_test, self.ph, self.dataset,
                                subject).evolution_to_csv(split)
 
     def compute_results_all_iter(self,maxiter=30):
@@ -202,7 +202,7 @@ class ResultsDatasetAPAC():
         """
         count = 0
         for subject in misc.datasets.datasets[self.dataset]["subjects"]:
-            if ResultsSubjectAPAC(self.model, self.experiment_test, self.ph, self.dataset,
+            if ResultsSubjectPICA(self.model, self.experiment_test, self.ph, self.dataset,
                                   subject).are_criteria_met(criteria_list):
                 print(subject + " meets criteria")
                 count += 1
@@ -213,7 +213,7 @@ class ResultsDatasetAPAC():
         """ plot average evolution of given metric through APAC iteration"""
         res = []
         for subject in self.subjects:
-            res.append(ResultsSubjectAPAC(self.model, self.experiment_test, self.ph, self.dataset,
+            res.append(ResultsSubjectPICA(self.model, self.experiment_test, self.ph, self.dataset,
                                           subject).compute_results_all_iter())
 
         iter = np.arange(len(res[0]))

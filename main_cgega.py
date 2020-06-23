@@ -6,10 +6,10 @@ from misc.utils import printd
 from misc.utils import locate_model, locate_params
 from preprocessing.preprocessing import preprocessing
 from processing.cross_validation import make_predictions_pclstm
-from processing.cv_cgega_iterative_training import cg_ega_iterative_training
+from processing.cv_cgega_iterative_training import progressive_improvement_clinical_acceptability
 from postprocessing.postprocessing import postprocessing, postprocessing_all_iter
 from postprocessing.results import ResultsSubject
-from postprocessing.results_apac import ResultsSubjectAPAC
+from postprocessing.results_pica import ResultsSubjectPICA
 import misc
 
 def main_cgega_iterative_training(dataset, subject, model, params1, params2, exp, eval_set, ph, save_iter=False):
@@ -33,15 +33,15 @@ def main_cgega_iterative_training(dataset, subject, model, params1, params2, exp
     dir = join(cs.path, "processing", "models", "weights", "cg_ega")
     file = join(dir, exp, model_class.__name__ + "_" + dataset + subject)
 
-    results_test, results_valid_iter = cg_ega_iterative_training(subject, model_class, params1, params2, ph,
-                                                                 freq_ds, train, valid, test, scalers, file, eval_set)
+    results_test, results_valid_iter = progressive_improvement_clinical_acceptability(subject, model_class, params1, params2, ph,
+                                                                                      freq_ds, train, valid, test, scalers, file, eval_set)
 
     results_test = postprocessing(results_test, scalers, dataset)
     results_valid_iter = postprocessing_all_iter(results_valid_iter, scalers, dataset)
 
     ResultsSubject(model, exp, ph, dataset, subject, params=[params1, params2], results=results_test).save_raw_results()
     if save_iter:
-        ResultsSubjectAPAC(model, exp, ph, dataset, subject, params=[params1, params2], results=results_valid_iter).save_raw_results()
+        ResultsSubjectPICA(model, exp, ph, dataset, subject, params=[params1, params2], results=results_valid_iter).save_raw_results()
 
 def main_standard(dataset, subject, model, params, exp, eval_set, ph):
     printd(dataset, subject, model, params, exp, eval_set, ph)

@@ -47,11 +47,6 @@ class PCLSTM(DeepPredictor):
 
     def save(self, save_file):
         self.model.load_state_dict(torch.load(self.checkpoint_file))
-        # no_da_lstm = self.LSTM_Module(self.input_shape, self.params["hidden"], self.params["dropout_weights"],
-        #                               self.params["dropout_layer"])
-        # self.model.load_state_dict(torch.load(self.checkpoint_file))
-        # no_da_lstm.encoder.load_state_dict(self.model.encoder.state_dict())
-        # no_da_lstm.regressor.load_state_dict(self.model.regressor.state_dict())
         if not os.path.exists(os.path.dirname(save_file)):
             os.makedirs(os.path.dirname(save_file))
         torch.save(self.model.state_dict(), save_file)

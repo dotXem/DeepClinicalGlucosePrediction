@@ -31,9 +31,7 @@ class DeepPredictor(Predictor):
         return checkpoint_file
 
     def _compute_loss_func(self):
-        #TODO rework / remove
         loss_func = nn.MSELoss()
-
         return loss_func
 
     def _reshape(self, data):

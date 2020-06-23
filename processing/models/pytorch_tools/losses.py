@@ -1,9 +1,20 @@
 import torch.nn as nn
 import torch
 
+"""
+File describing all the available new loss functions. Contains:
+- cMSE loss function: add a penalty to standard MSE based on predicted variations errors, 
+    should be used with two-output LSTM (pcLSTM) 
+- gcMSE loss function: cMSE personalized to glucose prediction. Both MSE of predictions and predicted variations are 
+    wieghed based on P-EGA and R-EGA regions respectively
+"""
 
 class cMSE(nn.Module):
     def __init__(self, c):
+        """
+        add a penalty to standard MSE based on predicted variations errors, should be used with two-output LSTM (pcLSTM)
+        :param c: coherence (weighing) factor
+        """
         super(cMSE, self).__init__()
 
         self.c = c
@@ -19,6 +30,16 @@ class cMSE(nn.Module):
 
 class gcMSE(nn.Module):
     def __init__(self, mean_y, std_y, freq, pega_coeff, rega_coeff, c):
+        """
+        cMSE personalized to glucose prediction. Both MSE of predictions and predicted variations are
+        wieghed based on P-EGA and R-EGA regions respectively
+        :param mean_y: original mean of glucose observations, used to rescale predictions
+        :param std_y: original std of glucose observations, used to rescale predictions
+        :param freq: prediction frequency
+        :param pega_coeff: P-EGA regions coefficients
+        :param rega_coeff: R-EGA regions coefficients
+        :param c:
+        """
         super(gcMSE, self).__init__()
         self.pega_grid = PEGA_Grid()
         self.rega_grid = REGA_Grid()
@@ -55,6 +76,9 @@ class gcMSE(nn.Module):
 
 
 class PEGA_Grid(nn.Module):
+    """
+    Compute P-EGA region mask of pairs {y_pred, y_true)
+    """
     def _compute_mod(self, dy):
         mod1_ind = ((dy > -2) & (dy <= -1)) | ((dy < 2) & (dy >= 1))
         mod2_ind = ((dy <= -2)) | ((dy >= 2))
@@ -99,6 +123,9 @@ class PEGA_Grid(nn.Module):
                             self.lD_region(x, y, mod), self.uE_region(x, y, mod), self.lE_region(x, y, mod)])
 
 class REGA_Grid(nn.Module):
+    """
+    Compute R-EGA region mask of pairs {dy_pred, dy_true)
+    """
     def A_region(self, dx, dy):
         return ((dx >= dy - 1) & (dx <= dy + 1)) | ((dx <= dy / 2) & (dx >= dy * 2)) | ((dx <= dy * 2) & (dx >= dy / 2))
 
