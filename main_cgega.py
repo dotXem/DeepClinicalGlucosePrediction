@@ -6,7 +6,7 @@ from misc.utils import printd
 from misc.utils import locate_model, locate_params
 from preprocessing.preprocessing import preprocessing
 from processing.cross_validation import make_predictions_pclstm
-from processing.cv_cgega_iterative_training import progressive_improvement_clinical_acceptability
+from processing.cv_pica_training import progressive_improvement_clinical_acceptability
 from postprocessing.postprocessing import postprocessing, postprocessing_all_iter
 from postprocessing.results import ResultsSubject
 from postprocessing.results_pica import ResultsSubjectPICA

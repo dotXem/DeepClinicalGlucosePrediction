@@ -50,6 +50,9 @@ def progressive_improvement_clinical_acceptability(subject, model_class, params_
         model.save(file_step1)
         results_iter.append(model.predict(dataset="valid"))
 
+        if (MASE(results_iter[-1], ph, freq) < 1 and not is_criteria_met(params_step2["criteria"], results_iter[-1])):
+            results_iter.append(smooth_results(results_iter[-1], params_step2["smoothing"]))
+
         """ Step 2 - Finetune gcMSE """
         iter = 1
         while(MASE(results_iter[-1], ph, freq) < 1 and not is_criteria_met(params_step2["criteria"], results_iter[-1])):
@@ -57,11 +60,12 @@ def progressive_improvement_clinical_acceptability(subject, model_class, params_
             model = model_class(subject, ph, params_iter, train_i, valid_i, test_i)
             model.load(file_step1)
             model.fit(mean, std)
-            results = model.predict(dataset="valid")
+            results = model.predict(dataset="valid",clear=False)
             results = smooth_results(results, params_iter["smoothing"])
             results_iter.append(results)
             if MASE(results_iter[-1], ph, freq) < 1:
                 model.save(file_step2) # save model only if it is acceptable (thus, last iter not saved)
+                model._clear_checkpoint()
             iter += 1
 
         results_valid.append(results_iter)
