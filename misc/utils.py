@@ -12,11 +12,6 @@ def dict_cartesian_product(dict):
     :return: array of values combinations
     """
     l2 = [list(elem) for elem in itertools.product(*dict.values())]
-    # l = iter([])
-    # for hparams in [dict]: #TODO remove ??
-    #     l2 = itertools.product(*hparams.values())
-    #     l = itertools.chain(l, l2)
-    # l2 = [list(elem) for elem in l]
     return l2
 
 

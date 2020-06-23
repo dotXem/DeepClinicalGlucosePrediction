@@ -21,7 +21,7 @@ def postprocessing(results, scalers, dataset):
 
 def postprocessing_all_iter(results, scalers, dataset):
     """
-    Do the whole post-processing pipeline by:
+    Do the whole post-processing pipeline to all results obtained by doing the APAC algorithm:
     1. rescaling the results
     2. formatting the results
     :param results:
@@ -60,6 +60,13 @@ def _rescale(results, scalers):
     return scaled_results
 
 def _smooth(results, smoothing_params):
+    """
+    Smooth results given a smoothing function (e.g., exponential_smoothing, moving_average)
+    :param results: array of shape (cv_fold, n_samples, 2);
+    :param smoothing_params: dict of keys "func" (to be taken from postprocessing.smoothing) et "params"
+            (of said smoothing function)
+    :return:smoothed results
+    """
     return smoothing_params["func"](results, smoothing_params["params"])
 
 

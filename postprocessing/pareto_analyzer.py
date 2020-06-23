@@ -11,13 +11,20 @@ class ParetoAnalyzer():
     max_metrics = ["TG", "CG_EGA_AP", "CG_EGA_AP_hypo", "CG_EGA_AP_eu", "CG_EGA_AP_hyper", "P_EGA_A+B", "R_EGA_A+B"]
 
     def __init__(self, model, dataset, ph, experiments):
+        """
+
+        :param model: model name (e.g., "pclstm")
+        :param dataset: dataset name (e.g., "idiab")
+        :param ph: prediction horizon (e.g., 30)
+        :param experiments: list of experiment names to load from
+        """
         self.model = model
         self.dataset = dataset
         self.ph = ph
         self.experiments = experiments
-        self.results = self.load_experiments(experiments)
+        self.results = self._load_experiments(experiments)
 
-    def load_experiments(self, experiments):
+    def _load_experiments(self, experiments):
         df_experiments = []
         for experiment in experiments:
             c = float(re.search("_c(.*)", experiment).group(1))
@@ -37,6 +44,12 @@ class ParetoAnalyzer():
         return pd.concat(df_experiments).reset_index()
 
     def plot_solutions(self, metrics, highlight=None):
+        """
+        plot all solutions given the objective (metrics)
+        :param metrics: list of metrics (e.g., ["CG_EGA_AP","RMSE"]), min 2
+        :param highlight: dict with keys "c", "win", "ratio"; used to highlight specific results
+        :return:
+        """
         if len(metrics) < 2:
             sys.exit()
 
@@ -62,12 +75,19 @@ class ParetoAnalyzer():
                 plt.ylabel(metrics[j])
 
     def plot_solutions_groupby_iter(self, metrics, c=[0.5, 1., 2., 4., 8.], win=np.arange(10), ratio =np.linspace(0,0.9,10)):
+        """
+        plot all solutions given the objective (metrics) for every c, win, and ratio tuplets
+        :param metrics: list of metrics (e.g., ["CG_EGA_AP","RMSE"]), min 2
+        :param highlight: dict with keys "c", "win", "ratio"; used to highlight specific results
+        :param c: list of coherence factors
+        :param win: list of window sizes
+        :param ratio: list of ratios
+        :return:
+        """
         if len(metrics) < 2:
-            print(len(metrics))
             sys.exit()
         for i in range(len(metrics) - 1):
             for j in range(i + 1, len(metrics)):
-                # pareto_front = pareto_front.sort_values(metrics[i]) # potentiellement, toutes les solutions sont plot quand beaucoup de metrics
                 plt.figure()
                 for c_ in c:
                     for win_ in win:
@@ -82,10 +102,22 @@ class ParetoAnalyzer():
                 plt.legend()
 
     def plot_pareto(self, metrics, x_label, y_label):
+        """
+        2d plot pareto solutions given x_label and y_label
+        :param metrics: list of metrics from which pareto front is computed (e.g., ["RMSE","CG_EGA_AP"]
+        :param x_label: name of x axis (e.g., "RMSE")
+        :param y_label: name of y axis (e.g., "CG_EGA_AP")
+        :return:
+        """
         pareto = self.undominated_solutions(metrics)
         pareto.sort_values(x_label).plot(x_label, y_label, style="o")
 
     def undominated_solutions(self, metrics):
+        """
+        compute the pareto/undominated front given objectifs (metrics)
+        :param metrics: list of objectives (e.g., ["RMSE","CG_EGA_AP"]
+        :return:
+        """
         # extract points in results given the chosen metrics
         results_min = self.results.copy()
         # transform metrics to be maximised in metrics to be minimized
@@ -95,6 +127,11 @@ class ParetoAnalyzer():
         return self.results[pareto_mask]
 
     def undominated_training(self, metrics):
+        """
+        compute the pareto/undominated front given objectifs (metrics)
+        :param metrics: list of objectives (e.g., ["RMSE","CG_EGA_AP"]
+        :return:
+        """
         results_min = self.results.copy()
         # transform metrics to be maximised in metrics to be minimized
         results_min.loc[:, self.max_metrics] = -results_min.loc[:, self.max_metrics]
@@ -111,39 +148,20 @@ class ParetoAnalyzer():
         # return np.array(costs)
 
     def pareto_training_mask(self, costs):
+        """
+        Compute the pareto mask (1 if pareto 0 if not) of array
+        :param costs: of array of shape (samples, objectives)
+        :return: list of dominating points
+        """
         dominating_pts = []
-        # n_points = costs.shape[0]
-        # i=0
-        # masks = []
-        # costs_reshaped = costs.copy().reshape(-1,costs.shape[2])
-        # for iter in range(costs.shape[1]):
-        #     np.any(costs_reshaped > costs[:,iter,:])
-        #     next_point_index = 0
-        #     while(next_point_index < len(costs)):
-
         next_point_index = 0
         while next_point_index < len(costs):
-            # costs_rshped = np.expand_dims(costs.reshape(-1, costs.shape[2]),axis=1)
-            # costs_i_xpd = np.repeat(costs[next_point_index][np.newaxis,:,:],costs_rshped.shape[0],axis=0)
-            # dominating_pts.append(np.sum(np.any(np.any(costs_i_xpd < costs_rshped,axis=2),axis=1)))
-            # next_point_index+=1
-
-
-
-            # pts_xpd = np.repeat(np.expand_dims(pts,0)[:,:,np.newaxis],400,axis=2)
             n_dominating_pts = 0
             for pts in costs.reshape(-1, costs.shape[2]):
-                # print(costs[next_point_index])
-                # print(pts)
-                # return dominating_pts
                 if not np.any(np.all(costs[next_point_index] > pts,axis=1),axis=0) : n_dominating_pts += 1
-                # if np.any(costs[next_point_index] < pts): n_dominating_pts += 1
             dominating_pts.append(n_dominating_pts)
             next_point_index+=1
         return dominating_pts
-            # nondominated_point_mask = np.any(costs.reshape(-1, costs.shape[2]) < costs[next_point_index], axis=1)
-
-            # n_dominated_points
 
     def pareto_mask(self, costs, return_mask=True):
         # source = https://stackoverflow.com/questions/32791911/fast-calculation-of-pareto-front-in-python

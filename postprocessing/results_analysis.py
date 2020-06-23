@@ -17,9 +17,15 @@ class ResultsAnalyzer:
     def __init__(self, model, exp):
         self.model = model
         self.exp = exp
-        pass
 
     def plot_mse_contrib(self, dataset, subject, nbins=25):
+        """
+        Plot 2d histogram of glucose observations and predictions
+        :param dataset: name of dataset (e.g., "ohio")
+        :param subject: name of subject (e.g., "575")
+        :param nbins: number of histogram bins
+        :return:
+        """
         res = self._get_res(self.model, self.exp, dataset, subject)
 
         plt.figure()
@@ -30,12 +36,24 @@ class ResultsAnalyzer:
         self._plot_pega_grid()
 
     def plot_density_errors(self, dataset, weights=False):
+        """
+        Plot density of errors for every subject of given dataset on top of P-EGA grid
+        :param dataset: name of dataset (e.g., "ohio")
+        :param weights: if the density is to be weighed by the magnitude of the errors (more realistic of real impact)
+        :return:
+        """
         fig, axes = plt.subplots(ncols=len(misc.datasets.datasets[dataset]["subjects"]), nrows=1, figsize=(21, 5))
         for i, sbj, in enumerate(misc.datasets.datasets[dataset]["subjects"]):
             self.plot_density_errors_per_subject(dataset, sbj, ax=axes[i], weights=weights)
             axes[i].set(aspect='equal')
 
     def plot_error_distributions(self, dataset, nbins=50):
+        """
+        Plot error distribution of given dataset
+        :param dataset: name of dataset (e.g., "ohio")
+        :param nbins: number of histogram bins
+        :return:
+        """
         n_arr, bins_arr = [], []
         for i, subject, in enumerate(misc.datasets.datasets[dataset]["subjects"]):
             res = self._get_res(self.model, self.exp, dataset, subject)
@@ -59,11 +77,21 @@ class ResultsAnalyzer:
         plt.ylabel("probabilité")
 
     def plot_error_vs_glucose_true(self, dataset):
+        """
+        Scatterplot of prediction errors against observation
+        :param dataset: name of dataset (e.g., "ohio")
+        :return:
+        """
         for i, subject, in enumerate(misc.datasets.datasets[dataset]["subjects"]):
             res = self._get_res(self.model, self.exp, dataset, subject)
             plt.scatter(res.y_true, res.error)
 
     def mse_impact_per_pega_zone(self, dataset):
+        """
+        Create DataFrame of impact of P-EGA zones on final MSE per subject
+        :param dataset: name of dataset (e.g., "ohio")
+        :return: DataFrame with impact of A, B, C, D, E regions on MSE for all dataset's subjects
+        """
 
         mse_impact_per_zone = []
         for i, sbj, in enumerate(misc.datasets.datasets[dataset]["subjects"]):
@@ -79,6 +107,12 @@ class ResultsAnalyzer:
         return mse_impact_per_zone
 
     def mse_impact_per_pega_zone_per_subject(self, dataset, subject):
+        """
+        Return the impact (ratio of total MSE) of each P-EGA zones for a given subject of given dataset
+        :param dataset: name of dataset (e.g. "ohio")
+        :param subject: name of subject (e.g., "575")
+        :return: impact ratio of A, B, C, D, E regions of P-EGA
+        """
         res = ResultsSubject(self.model, self.exp, 30, dataset, subject).results
         cg_ega_arr = [CG_EGA(res_split, misc.datasets.datasets[dataset]["glucose_freq"]).per_sample().dropna() for
                       res_split in
@@ -91,23 +125,19 @@ class ResultsAnalyzer:
                 subset = cg_ega_split.loc[cg_ega_split.P_EGA == zone]
                 impact_arr.append(((subset.y_true - subset.y_pred) ** 2).sum() / sum)
 
-            print(np.sum([a_impact[-1], b_impact[-1], c_impact[-1], d_impact[-1], e_impact[-1]]))
-
         a_impact, b_impact, c_impact, d_impact, e_impact = [np.nanmean(impact) for impact in
                                                             [a_impact, b_impact, c_impact, d_impact, e_impact]]
-
-        # sums = [ for cg_ega_split in cg_ega_arr]
-
-        # def proportion_calc(impact, sums):
-        #     impact = np.mean([impact_split / sums_split for impact_split, sums_split in zip(impact, sums)])
-        #     return impact
-        #
-        # a_impact, b_impact, c_impact, d_impact, e_impact = [proportion_calc(impact, sums) for impact in
-        #                                                     [a_impact, b_impact, c_impact, d_impact, e_impact]]
 
         return a_impact, b_impact, c_impact, d_impact, e_impact
 
     def plot_glucose_distributions(self, dataset, nbins=50, export=False):
+        """
+        Plot glucose samples distributions
+        :param dataset: name of dataset (e.g., "ohio")
+        :param nbins: number of histogram bins
+        :param export: save results or not (boolean)
+        :return:
+        """
         n_arr, bins_arr = [], []
         for i, subject, in enumerate(misc.datasets.datasets[dataset]["subjects"]):
             res = self._get_res(self.model, self.exp, dataset, subject)
@@ -135,6 +165,14 @@ class ResultsAnalyzer:
             df.to_csv(path.join(cs.path, "tmp","figures_data","glucose_distribution_"+dataset+".dat"),index_label="index")
 
     def plot_density_errors_per_subject(self, dataset, subject, nbins=25, ax=None, weights=False):
+        """
+        Plot density of errors for every subject of given dataset on top of P-EGA grid
+        :param dataset: name of dataset (e.g., "ohio")
+        :param nbins: number of histogram bins
+        :param ax: optionnal, to make it work with plot_density_errors function
+        :param weights: if the density is to be weighed by the magnitude of the errors (more realistic of real impact)
+        :return:
+        """
         res = self._get_res(self.model, self.exp, dataset, subject)
         weights = res.error if weights else None
         k = kde.gaussian_kde([res.y_true, res.y_pred], weights=weights)
@@ -148,6 +186,12 @@ class ResultsAnalyzer:
         self._plot_pega_grid(ax)
 
     def erroneous_prediction_analysis(self, dataset, disp=False):
+        """
+        Compute the responsability of P-EGA or R-EGA on EP predictions for all the subjects of given dataset
+        :param dataset: name of dataset (e.g., "ohio")
+        :param disp: if True, print latex format of DataFrame
+        :return:
+        """
         cg_ega_analysis = []
         for i, sbj, in enumerate(misc.datasets.datasets[dataset]["subjects"]):
             mean_sbj, std_sbj = self.erroneous_prediction_analysis_per_subject(dataset, sbj)
@@ -172,7 +216,11 @@ class ResultsAnalyzer:
         return cg_ega_analysis
 
     def plot_importance_bad_pega_in_loss(self,c=None):
-
+        """
+        Plot relative importance of P-C/D/E (and R) on loss depending on P-A/B scaling factor
+        :param c: coherence factor weighing MSE of predicted variations compared to MSE of predictions
+        :return:
+        """
         scaling_arr = np.logspace(0, 10, num=21, base=2)
 
         cde_impact_ds, r_impact_ds = [], []
@@ -238,7 +286,11 @@ class ResultsAnalyzer:
         plt.title("relative importance of P-C/D/E (and R) on loss depending on P-A/B scaling factor")
 
     def p_ega_analysis(self, dataset):
-        # fig, axes = plt.subplots(ncols=len(misc.datasets.datasets[dataset]["subjects"]), nrows=1, figsize=(21, 5))
+        """
+        Retrieve P-EGA of subjects of given dataset
+        :param dataset: name of dataset (e.g., "ohio")
+        :return:
+        """
         p_ega_analysis = []
         for i, sbj, in enumerate(misc.datasets.datasets[dataset]["subjects"]):
             p_ega_analysis.append(self.p_ega_analysis_per_subject(dataset, sbj))
@@ -252,7 +304,11 @@ class ResultsAnalyzer:
         return p_ega_analysis
 
     def r_ega_analysis(self, dataset):
-        # fig, axes = plt.subplots(ncols=len(misc.datasets.datasets[dataset]["subjects"]), nrows=1, figsize=(21, 5))
+        """
+        Retrieve R-EGA of subjects of given dataset
+        :param dataset: name of dataset (e.g., "ohio")
+        :return:
+        """
         r_ega_analysis = []
         for i, sbj, in enumerate(misc.datasets.datasets[dataset]["subjects"]):
             r_ega_analysis.append(self.r_ega_analysis_per_subject(dataset, sbj))
@@ -267,6 +323,12 @@ class ResultsAnalyzer:
         return r_ega_analysis
 
     def p_ega_analysis_per_subject(self, dataset, subject):
+        """
+        Retrieve P-EGA of given subject
+        :param dataset: name of dataset (e.g., "ohio")
+        :param subject: name of subject (e.g., "575")
+        :return:
+        """
         res = ResultsSubject(self.model, self.exp, 30, dataset, subject).results
         p_ega_arr = np.array([P_EGA(res_split, misc.datasets.datasets[dataset]["glucose_freq"]).mean() for res_split in
                               res])
@@ -277,6 +339,12 @@ class ResultsAnalyzer:
         return p_ega_arr
 
     def r_ega_analysis_per_subject(self, dataset, subject):
+        """
+        Retrieve R-EGA of given subject
+        :param dataset: name of dataset (e.g., "ohio")
+        :param subject: name of subject (e.g., "575")
+        :return:
+        """
         res = ResultsSubject(self.model, self.exp, 30, dataset, subject).results
         r_ega_arr = np.array([R_EGA(res_split, misc.datasets.datasets[dataset]["glucose_freq"]).mean() for res_split in
                               res])
@@ -287,6 +355,13 @@ class ResultsAnalyzer:
         return r_ega_arr
 
     def erroneous_prediction_analysis_per_subject(self, dataset, subject):
+        """
+        Compute responsability of P-EGA and R-EGA (or both of them) on EP prediction forn given dataset and subject
+        :param dataset: name of dataset (e.g., "dataset")
+        :param subject: name of subject (e.g., "subject")
+        :return: array of shape (3 - hypo/eu/hyper, 3 - P/R/P-R) of mean responsability,
+                array of shape (3 - hypo/eu/hyper, 3 - P/R/P-R) of std responsability
+        """
         res = ResultsSubject(self.model, self.exp, 30, dataset, subject).results
         cg_ega_arr = [CG_EGA(res_split, misc.datasets.datasets[dataset]["glucose_freq"]).per_sample() for res_split in
                       res]
@@ -336,7 +411,14 @@ class ResultsAnalyzer:
         return np.r_[hypo_ep_mean, eu_ep_mean, hyper_ep_mean], np.r_[hypo_ep_std, eu_ep_std, hyper_ep_std]
 
     def _get_res(self, model, exp, dataset, subject):
-        # TODO res.results[0] ??? need args "split" ?
+        """
+        Retrieve results (split 0) of given model, exp, dataset and subject
+        :param model: name of model
+        :param exp: name of experiment
+        :param dataset: name of dataset
+        :param subject: name of subject
+        :return:
+        """
         res = ResultsSubject(model, exp, 30, dataset, subject)
         res_raw = res.results[0]
         res_raw.loc[:, "error"] = (res_raw.y_true - res_raw.y_pred) ** 2
@@ -344,6 +426,11 @@ class ResultsAnalyzer:
         return res_raw
 
     def _plot_pega_grid(self, ax):
+        """
+        Background plot the P-EGA grid
+        :param ax: axis on which to plot the P-EGA background grid
+        :return:
+        """
         ax.plot([0, 400], [0, 400], "-k")
         ax.plot([58.33, 400], [58.33333 * 6 / 5, 400 * 6 / 5], "-k")
         ax.plot([0, 58.33333], [70, 70], "-k")
@@ -378,6 +465,11 @@ class ResultsAnalyzer:
         ax.set_ylim(0, 400)
 
     def save_all_p_r_ega_points(self, dataset):
+        """
+        Save P-EGA and R-EGA points into files
+        :param dataset: name of dataset (e.g., "ohio")
+        :return:
+        """
         ap_p, be_p, ep_p, ap_r, be_r, ep_r = [], [], [], [], [], []
         for i, sbj, in enumerate(misc.datasets.datasets[dataset]["subjects"]):
             for split_res in ResultsSubject(self.model, self.exp, 30, dataset, sbj).results:

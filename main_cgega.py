@@ -5,11 +5,11 @@ import misc.constants as cs
 from misc.utils import printd
 from misc.utils import locate_model, locate_params
 from preprocessing.preprocessing import preprocessing
-from processing.cross_validation import make_predictions, make_predictions_pclstm
+from processing.cross_validation import make_predictions_pclstm
 from processing.cv_cgega_iterative_training import cg_ega_iterative_training
 from postprocessing.postprocessing import postprocessing, postprocessing_all_iter
 from postprocessing.results import ResultsSubject
-from postprocessing.results_twostep import ResultsSubjectAllIter
+from postprocessing.results_apac import ResultsSubjectAPAC
 import misc
 
 def main_cgega_iterative_training(dataset, subject, model, params1, params2, exp, eval_set, ph, save_iter=False):
@@ -41,7 +41,7 @@ def main_cgega_iterative_training(dataset, subject, model, params1, params2, exp
 
     ResultsSubject(model, exp, ph, dataset, subject, params=[params1, params2], results=results_test).save_raw_results()
     if save_iter:
-        ResultsSubjectAllIter(model, exp, ph, dataset, subject, params=[params1, params2], results=results_valid_iter).save_raw_results()
+        ResultsSubjectAPAC(model, exp, ph, dataset, subject, params=[params1, params2], results=results_valid_iter).save_raw_results()
 
 def main_standard(dataset, subject, model, params, exp, eval_set, ph):
     printd(dataset, subject, model, params, exp, eval_set, ph)
@@ -68,15 +68,16 @@ def main_standard(dataset, subject, model, params, exp, eval_set, ph):
 
 if __name__ == "__main__":
     """ The main function contains the following optional parameters:
+            --mode: either "standard" or "iterative", if "iterative" it uses the APAC training algorithm;
             --dataset: which dataset to use, should be referenced in misc/datasets.py;
             --subject: which subject to use, part of the dataset, use the spelling in misc/datasets.py;
             --model: model on which the benchmark will be run (e.g., "svr"); need to be lowercase; 
-            --params: parameters of the model, usually has the same name as the model (e.g., "svr"); need to be lowercase; 
+            --params1: parameters of the model, usually has the same name as the model (e.g., "svr"); need to be lowercase; 
+            --params2: same as params1 but is used only in "iterative" mode, during finetuning at stage 2; 
             --ph: the prediction horizon of the models; default 30 minutes;
             --exp: experimental folder in which the data will be stored, inside the results directory;
-            --mode: specify is the model is tested on the validation "valid" set or testing "test" set ;
-            --plot: if a plot of the predictions shall be made at the end of the training;
-            --log: file where the standard outputs will be redirected to; default: logs stay in stdout; 
+            --eval_set: specify is the model is tested on the validation "valid" set or testing "test" set ;
+            --save_iter: either 0 or 1, says if the results of all iteration of APÄC must be saved
 
         Example:
             python main.py --dataset=ohio --subject=559 --model=base --params=base --ph=30 

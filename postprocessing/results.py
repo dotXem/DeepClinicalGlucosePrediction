@@ -309,7 +309,10 @@ class ResultsSubject():
 
         print_latex(mean, std, label=self.subject)
 
-from postprocessing.smoothing import smooth_results
+
+""" Functions to smooth the results, creating new results object with name {name}_smooth """
+
+
 def smooth_resultssubject(results_sbj, smoothing_params):
     res = results_sbj.results.copy()
     res = [smooth_results(res_split,smoothing_params) for res_split in res]

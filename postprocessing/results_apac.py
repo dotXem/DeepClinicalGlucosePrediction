@@ -12,7 +12,15 @@ from misc.utils import print_latex
 from postprocessing.results import ResultsSubject
 
 
-class ResultsSubjectAllIter(ResultsSubject):
+class ResultsSubjectAPAC(ResultsSubject):
+    """
+    Same as ResultsSubject object from postprocessing.results, but works with all iterations of algorithm APAC at once
+
+    Posess several additional functions:
+        - compute_evolution
+        - evolution_to_csv
+        - are_criteria_met
+    """
     def __init__(self, model, experiment, ph, dataset, subject, params=None, results=None):
 
         self.model = model
@@ -74,6 +82,11 @@ class ResultsSubjectAllIter(ResultsSubject):
         return res_iter
 
     def compute_evolution(self,split=0):
+        """
+        Compute the evolution of each metric through the algorithm APAC
+        :param split: number of given split
+        :return: DataFrame of shape (n_iter, n_metrics)
+        """
         dict_arr = []
         for iter in range(len(self.results[0])):
             dict_arr.append(self.compute_results_iter_split(iter,split)[0])
@@ -83,9 +96,13 @@ class ResultsSubjectAllIter(ResultsSubject):
             evolution[key] = [d[key] for d in dict_arr]
 
         return pd.DataFrame(data=np.transpose(list(evolution.values())),columns=list(evolution.keys()))
-        # return np.transpose(list(evolution.values())), list(evolution.keys())
 
     def evolution_to_csv(self, split=0):
+        """
+        Save the evolution computed by function compute_evolution into csv file format
+        :param split: number of given split
+        :return:
+        """
         evolution = self.compute_evolution(split)
         evolution.columns = [_.replace("_","-") for _ in evolution.columns]
         ega_cols = [col for col in evolution.columns if "EGA" in col]
@@ -93,6 +110,14 @@ class ResultsSubjectAllIter(ResultsSubject):
         evolution.to_csv(os.path.join(cs.path,"tmp", "figures_data", "evolution_" + self.dataset + self.subject + ".dat"), index_label="iteration", sep=" ")
 
     def are_criteria_met(self, criteria_list):
+        """
+        From the evolution DataFrame computed by the compute_evolution function, return True if all the criterias in
+        criteria_list parameter are met by the subject else False
+
+        criteria example : {"metric":"CG_EGA_AP","func": lambda x : np.greater_equal(x,0.90)}
+        :param criteria_list: list of criteria having the shape of dict with keys "metric" and "func" (see example above)
+        :return: True if all the criterias in criteria_list parameter are met by the subject else False
+        """
         evolution = self.compute_evolution()
         criteria_meeting = []
         for criteria in criteria_list:
@@ -114,41 +139,22 @@ class ResultsSubjectAllIter(ResultsSubject):
         return mean, std
 
 
-class ResultsDatasetAllIter():
+class ResultsDatasetAPAC():
+    """
+    Same as ResultsDataset object from postprocessing.results, but works with all iterations of algorithm APAC at once
+
+    Posess several additional functions:
+        - evolution_to_csv
+        - number_of_subjects_meeting_criteria
+        - plot_evolution_through_iter
+    """
     def __init__(self, model, experiment, ph, dataset):
         self.model = model
-        # self.experiment_valid = experiment + "_valid"
         self.experiment_test = experiment
         self.ph = ph
         self.dataset = dataset
         self.subjects = misc.datasets.datasets[dataset]["subjects"]
         self.freq = misc.datasets.datasets[dataset]["glucose_freq"]
-
-    # def compute_results_with_criteria(self, criteria, threshold):
-    #     if criteria == "AP":
-    #         func = lambda res: np.where(np.array(res["CG_EGA_AP"]) >= threshold)[0]
-    #     elif criteria == "BE":
-    #         func = lambda res: np.where(np.array(res["CG_EGA_BE"]) < threshold)[0]
-    #     elif criteria == "EP":
-    #         func = lambda res: np.where(np.array(res["CG_EGA_EP"]) < threshold)[0]
-    #     elif criteria == "MASE":
-    #         func = lambda res: np.flip(np.where(np.array(res["MASE"]) < threshold))[0]
-    #
-    #     res = []
-    #     for subject in self.subjects:
-    #         evolution_valid = ResultsSubjectAllIter(self.model, self.experiment_valid, self.ph, self.dataset,
-    #                                                 subject).compute_evolution()
-    #         evolution_test = ResultsSubjectAllIter(self.model, self.experiment_test, self.ph, self.dataset,
-    #                                                subject).compute_evolution()
-    #         criteria_met_index = func(evolution_valid)
-    #         if len(criteria_met_index) > 0:
-    #             best_compromise_index = criteria_met_index[0]
-    #             res.append({k: v[best_compromise_index] for k, v in evolution_test.items()})
-    #         else:
-    #             # criteria not met
-    #             res.append({k: -1 for k, v in evolution_test.items()})
-    #
-    #     return res
 
     def compute_results_iter(self, iter=0, details=False):
         """
@@ -157,8 +163,8 @@ class ResultsDatasetAllIter():
         """
         res = []
         for subject in self.subjects:
-            res_subject = ResultsSubjectAllIter(self.model, self.experiment_test, self.ph, self.dataset,
-                                                subject).compute_results_iter_split(iter)
+            res_subject = ResultsSubjectAPAC(self.model, self.experiment_test, self.ph, self.dataset,
+                                             subject).compute_results_iter_split(iter)
             if details:
                 print(self.dataset, subject, res_subject)
 
@@ -170,9 +176,14 @@ class ResultsDatasetAllIter():
         return dict(zip(keys, mean)), dict(zip(keys, std))
 
     def evolution_to_csv(self, split=0):
+        """
+        Save into CSV the evolution of all dataset's subjects
+        :param split: number of given split
+        :return:
+        """
         for subject in misc.datasets.datasets[self.dataset]["subjects"]:
-            ResultsSubjectAllIter(self.model, self.experiment_test, self.ph, self.dataset,
-                                                subject).evolution_to_csv(split)
+            ResultsSubjectAPAC(self.model, self.experiment_test, self.ph, self.dataset,
+                               subject).evolution_to_csv(split)
 
     def compute_results_all_iter(self,maxiter=30):
         res = []
@@ -181,27 +192,29 @@ class ResultsDatasetAllIter():
 
         return res
 
-    def number_of_patients_meeting_criteria(self, criteria_list):
+    def number_of_subjects_meeting_criteria(self, criteria_list):
         """
-        How to use : ResultsDatasetAllIter("pclstm","pclstm_iterative_gcmse_alliter",30,"idiab").number_of_patients_meeting_criteria([{"metric":"CG_EGA_AP","func": lambda x : np.greater_equal(x,0.90)}])
+        How to use : ResultsDatasetAllIter("pclstm","pclstm_iterative_gcmse_alliter",30,"idiab")\
+            .number_of_patients_meeting_criteria([{"metric":"CG_EGA_AP","func": lambda x : np.greater_equal(x,0.90)}])
 
-        :param criteria_list:
-        :return:
+        :param criteria_list: list of criteria like {"metric":"CG_EGA_AP","func": lambda x : np.greater_equal(x,0.90)}
+        :return: count of subjects meeting criteria
         """
         count = 0
         for subject in misc.datasets.datasets[self.dataset]["subjects"]:
-            if ResultsSubjectAllIter(self.model, self.experiment_test, self.ph, self.dataset,
-                                                subject).are_criteria_met(criteria_list):
+            if ResultsSubjectAPAC(self.model, self.experiment_test, self.ph, self.dataset,
+                                  subject).are_criteria_met(criteria_list):
                 print(subject + " meets criteria")
                 count += 1
 
         return count
 
     def plot_evolution_through_iter(self, metric, save_file=None):
+        """ plot average evolution of given metric through APAC iteration"""
         res = []
         for subject in self.subjects:
-            res.append(ResultsSubjectAllIter(self.model, self.experiment_test, self.ph, self.dataset,
-                                             subject).compute_results_all_iter())
+            res.append(ResultsSubjectAPAC(self.model, self.experiment_test, self.ph, self.dataset,
+                                          subject).compute_results_all_iter())
 
         iter = np.arange(len(res[0]))
         keys = np.array(list(res[0][0].keys()))
@@ -230,8 +243,6 @@ class ResultsDatasetAllIter():
             path = os.path.join(cs.path, "tmp", "figures_data",save_file)
             DataFrame(data=np.c_[iter.reshape(-1,1), vals_mean],columns= np.r_[["iter"],keys]).to_csv(path + "_mean",sep=" ")
             DataFrame(data=np.c_[iter.reshape(-1,1), vals_std],columns= np.r_[["iter"],keys]).to_csv(path + "_std",sep=" ")
-            # np.savetxt(os.path.join(cs.path, "tmp", "figures_data",save_file + "_mean"),mean,header=np.r_[["iter"],keys])
-            # np.savetxt(os.path.join(cs.path, "tmp", "figures_data",save_file + "_std"),std,header=np.r_[["iter"],keys])
 
     def to_latex(self, iter=0, table="general", model_name=None):
         """
@@ -268,77 +279,3 @@ class ResultsDatasetAllIter():
         print_latex(mean, std, label=self.model)
 
 
-
-    # def get_params_results_from_eval_mode(self, eval_mode):
-    #     if eval_mode == "valid":
-    #         return self.params_valid, self.results_valid
-    #     elif eval_mode == "test":
-    #         return self.params_test, self.results_test
-    #     else:
-    #         return self.params, self.results
-
-    # def get_results_MASE_1(self):
-    #     evolution
-
-
-# def plot_steps_mase_region_ap(dataset, subject, exp, split=0):
-#     import matplotlib.pyplot as plt
-#     from postprocessing.metrics.mase import MASE
-#     from postprocessing.metrics.cg_ega import CG_EGA
-#     import numpy as np
-#     from postprocessing.results import ResultsSubjectTwoStep
-#     res = ResultsSubjectTwoStep("pclstm", exp, 30, dataset, subject).results
-#     res = res[split]
-#     freq = 15 if dataset == "idiab" else 5
-#     rmse = [MASE(res_, 30, freq) for res_ in res]
-#     cgega_region = np.array([CG_EGA(res_, freq).simplified() for res_ in res])
-#     cgega_all = np.array([CG_EGA(res_, freq).reduced() for res_ in res])
-#     iter = np.arange(len(rmse))
-#     fig, ax1 = plt.subplots()
-#     ax1.plot(iter, rmse, label="MASE")
-#     ax1.set_xlabel("iter")
-#     ax1.set_ylabel("MASE")
-#     ax2 = ax1.twinx()
-#     ax2.plot(iter, cgega_region[:, 0], label="AP-hypo", color="tab:green")
-#     ax2.plot(iter, cgega_region[:, 3], label="AP-eu", color="tab:orange")
-#     ax2.plot(iter, cgega_region[:, 6], label="AP-hyper", color="tab:red")
-#     ax2.plot(iter, cgega_all[:, 0], label="AP", color="tab:purple")
-#     plt.legend()
-#     ax2.set_ylabel("probability")
-
-# def hypo_mse_ratio(dataset, subject):
-#     res = ResultsSubject("pclstm", "pclstm_mse_valid", 30, dataset, subject).results
-#     ratio = []
-#     for res_ in res:
-#         res_hypo = res_.loc[res_.y_true < 70]
-#         res_hyper = res_.loc[res_.y_true > 180]
-#         mse_hypo = ((res_hypo.y_true - res_hypo.y_pred) ** 2).sum()
-#         mse_hyper = ((res_hyper.y_true - res_hyper.y_pred) ** 2).sum()
-#         ratio.append(mse_hypo/mse_hyper)
-#         print(mse_hypo, mse_hyper)
-#     return np.nanmean(ratio)
-
-# a = []
-# for sbj in ["559", "563", "570", "575", "588", "591"]:
-#     a.append(hypo_mse_ratio("ohio", sbj))
-#
-# for sbj in ["1","2","3","4","5","6"]:
-#     a.append(hypo_mse_ratio("idiab",sbj))
-
-
-# def noap_pr_ratio(dataset, subject):
-#     from postprocessing.metrics.cg_ega import CG_EGA
-#     import misc
-#     from postprocessing.results import ResultsSubject
-#     res = ResultsSubject("pclstm", "pclstm_mse_valid", 30, dataset, subject).results
-#     ratio = []
-#     for res_ in res:
-#         cgega = CG_EGA(res_,misc.datasets.datasets[dataset]["glucose_freq"]).per_sample()
-#         # pega_cde = cgega[(cgega.P_EGA == "C") | (cgega.P_EGA == "D") | (cgega.P_EGA == "E")]
-#         pega_cde = cgega
-#         rega_cde = cgega[(cgega.R_EGA == "uC") | (cgega.R_EGA == "lC") | (cgega.R_EGA == "uD") | (cgega.R_EGA == "lD") | (cgega.R_EGA == "uE") | (cgega.R_EGA == "lE")]
-#         pega_mse = ((pega_cde.y_true - pega_cde.y_pred) ** 2).mean()
-#         rega_mse = ((rega_cde.dy_true - rega_cde.dy_pred) ** 2).mean()
-#         ratio.append(rega_mse/pega_mse)
-#         print(rega_mse, pega_mse)
-#     return np.nanmean(ratio)
