@@ -69,9 +69,10 @@ def progressive_improvement_clinical_acceptability(subject, model_class, params_
             iter += 1
 
         results_valid.append(results_iter)
-        model.load(file_step2)
+        model.load(file_step2) if iter > 2 else model.load(file_step1)
         results = model.predict(dataset=eval_set)
-        results = smooth_results(results, params_step2["smoothing"])
+        if len(results_iter) > 2:
+            results = smooth_results(results, params_step2["smoothing"])
         results_test.append(results)
 
     return results_test, results_valid

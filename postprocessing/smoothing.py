@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 
 def smooth_results(results, params):
+    results = results.copy()
     results.y_pred = params["func"](results.y_pred, *params["params"]).astype(np.float32)
     return results
 

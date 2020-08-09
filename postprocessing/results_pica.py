@@ -97,7 +97,7 @@ class ResultsSubjectPICA(ResultsSubject):
 
         return pd.DataFrame(data=np.transpose(list(evolution.values())),columns=list(evolution.keys()))
 
-    def evolution_to_csv(self, split=0):
+    def evolution_to_csv(self, split=0, file_name_ext=""):
         """
         Save the evolution computed by function compute_evolution into csv file format
         :param split: number of given split
@@ -107,7 +107,8 @@ class ResultsSubjectPICA(ResultsSubject):
         evolution.columns = [_.replace("_","-") for _ in evolution.columns]
         ega_cols = [col for col in evolution.columns if "EGA" in col]
         evolution.loc[:, ega_cols] = evolution.loc[:, ega_cols] * 100
-        evolution.to_csv(os.path.join(cs.path,"tmp", "figures_data", "evolution_" + self.dataset + self.subject + ".dat"), index_label="iteration", sep=" ")
+        evolution.to_csv(os.path.join(cs.path,"tmp", "figures_data", "evolution_" + self.dataset + self.subject +
+                                      file_name_ext + ".dat"), index_label="iteration", sep=" ")
 
     def are_criteria_met(self, criteria_list):
         """
@@ -175,7 +176,7 @@ class ResultsDatasetPICA():
         mean, std = np.nanmean(res, axis=0), np.nanstd(res, axis=0)
         return dict(zip(keys, mean)), dict(zip(keys, std))
 
-    def evolution_to_csv(self, split=0):
+    def evolution_to_csv(self, split=0, file_name_ext=""):
         """
         Save into CSV the evolution of all dataset's subjects
         :param split: number of given split
@@ -183,7 +184,7 @@ class ResultsDatasetPICA():
         """
         for subject in misc.datasets.datasets[self.dataset]["subjects"]:
             ResultsSubjectPICA(self.model, self.experiment_test, self.ph, self.dataset,
-                               subject).evolution_to_csv(split)
+                               subject).evolution_to_csv(split, file_name_ext)
 
     def compute_results_all_iter(self,maxiter=30):
         res = []
